@@ -50,7 +50,7 @@ declare -r AUTOSCALING_GROUP_NAME=$(
         --region $REGION \
         --filters "Name=resource-id,Values=$INSTANCE_ID" \
                   "Name=key,Values=aws:autoscaling:groupName" \
-        | jq -r '.Tags[0].Value'
+        | jq -r '.Tags[0].Value' \
         || echo "AutoDetectionFailed"
     )
 
