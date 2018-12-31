@@ -1,0 +1,34 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "ecs-stale-ec2-rescaler",
+      "image": "civitaspo/ecs-stale-ec2-rescaler:latest",
+      "cpu": 10,
+      "memory": 128,
+      "essential": true,
+      "mountPoints": [
+        {
+          "containerPath": "/var/log/ecs",
+          "sourceVolume": "var_log_ecs",
+          "readOnly": true
+        }
+      ],
+      "environment": [
+        {
+          "name": "SLACK_URL",
+          "value": "YOUR_SLACK_INCOMING_WEBHOOK_URL"
+        }
+      ]
+    }
+  ],
+  "volumes": [
+    {
+      "host": {
+        "sourcePath": "/var/log/ecs"
+      },
+      "name": "var_log_ecs"
+    }
+  ],
+  "family": "ecs-stale-ec2-rescaler"
+}
+

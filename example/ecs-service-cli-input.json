@@ -1,0 +1,13 @@
+{
+  "cluster": "YOUR_CLUSTER_NAME",
+  "role": "YOUR_ECS_TASK_ROLE_",
+  "serviceName": "ecs-stale-ec2-rescaler",
+  "taskDefinition": "ecs-stale-ec2-rescaler",
+  "desiredCount": 1,
+  "placementConstraints": [
+    {
+      "type": "distinctInstance"
+    }
+  ],
+  "schedulingStrategy": "DAEMON"
+}
