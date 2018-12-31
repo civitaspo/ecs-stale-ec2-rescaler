@@ -28,6 +28,12 @@ Docker Image for ECS to terminate a stale container instance that belongs to a a
 - [amazon-ecs-agent#1698 Docker corrupted](https://github.com/aws/amazon-ecs-agent/issues/1698)
 - [amazon-ecs-agent#1667 One task prevents from all of the other in instance to change from PENDING to RUNNING](https://github.com/aws/amazon-ecs-agent/issues/1667)
 
+# Example
+
+- [Example Task](./example/ecs-task-cli-input.json)
+- [Example Task Role](./example/ecs-task-role.json)
+- [Example Service](./example/ecs-service-cli-input.json)
+
 # ChangeLog
 
 [CHANGELOG.md](./CHANGELOG.md)
