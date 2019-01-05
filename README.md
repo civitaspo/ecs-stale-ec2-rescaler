@@ -1,7 +1,6 @@
 # ecs-stale-ec2-rescaler
 
 [![Tags](https://img.shields.io/github/tag/civitaspo/ecs-stale-ec2-rescaler.svg?style=flat-square)](https://github.com/civitaspo/ecs-stale-ec2-rescaler/tags)
-[![Docker Build Status](https://img.shields.io/docker/build/civitaspo/ecs-stale-ec2-rescaler.svg?style=flat-square)](https://hub.docker.com/r/civitaspo/ecs-stale-ec2-rescaler/builds)
 [![Docker Pulls](https://img.shields.io/docker/pulls/civitaspo/ecs-stale-ec2-rescaler.svg?style=flat-square)](https://hub.docker.com/r/civitaspo/ecs-stale-ec2-rescaler)
 
 Docker Image for ECS to terminate a stale container instance that belongs to a autoscaling group.
