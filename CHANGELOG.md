@@ -1,3 +1,8 @@
+0.0.2 (2019-02-24)
+==================
+
+* Detect duplicate eni attachment message abnormality (#3)
+
 0.0.1 (2018-12-31)
 ==================
 
