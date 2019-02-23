@@ -34,7 +34,7 @@ declare -ir DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD=${DUPLICATE_ENI_ATTACHME
 declare -r INSTANCE_IDENTITY_URL=${INSTANCE_IDENTITY_URL:-http://169.254.169.254/latest/dynamic/instance-identity/document}
 declare -i num_attempts=0
 while [ -z "$(curl -s $INSTANCE_IDENTITY_URL | jq -r .instanceId)" ]; do
-    if ((num_attempts == $POLLING_MAX_ATTEMPTS)); then
+    if ((num_attempts == POLLING_MAX_ATTEMPTS)); then
         __error_log "Max attpempts(=$POLLING_MAX_ATTEMPTS) is exceeded because $INSTANCE_IDENTITY_URL did not become available."
         exit 1
     fi
