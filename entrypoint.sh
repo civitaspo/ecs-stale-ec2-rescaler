@@ -56,16 +56,22 @@ declare -r AUTOSCALING_GROUP_NAME=$(
 
 declare -r SLACK_URL=${SLACK_URL:-}
 declare -r SLACK_ADDITIONAL_MESSAGE=${SLACK_ADDITIONAL_MESSAGE:-}
-declare -r SLACK_MESSAGE=":hammer_and_wrench: Detect stale state, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME. $SLACK_ADDITIONAL_MESSAGE"
 declare -r SLACK_CHANNEL=${SLACK_CHANNEL:-}
 declare -r SLACK_ICON_EMOJI=${SLACK_ICON_EMOJI:-}
 
 __info_log "Polling until errors are catched."
-until ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} >/dev/null; do
+declare STALE_STATE_CAUSE=""
+while true; do
+    if ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} >/dev/null; then
+        STALE_STATE_CAUSE="Error getting message from ws backend"
+        break
+    fi
     sleep $POLLING_INTERVAL
 done
 
-__warn_log "Detect the stale state, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -r MESSAGE="Detect stale state:$STALE_STATE_CAUSE, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -r SLACK_MESSAGE=":hammer_and_wrench: $MESSAGE $SLACK_ADDITIONAL_MESSAGE"
+__warn_log "$MESSAGE"
 
 if [ ! -z "$SLACK_URL" ]; then
     curl -X POST \
