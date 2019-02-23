@@ -29,11 +29,12 @@ __info_log "See https://github.com/civitaspo/ecs-stale-ec2-rescaler for more inf
 declare -r  APP_NAME=ecs-stale-ec2-rescaler
 declare -ir POLLING_MAX_ATTEMPTS=${POLLING_MAX_ATTEMPTS:-60}
 declare -ir POLLING_INTERVAL=${POLLING_INTERVAL:-1}
+declare -ir DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD=${DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD:-50}
 
 declare -r INSTANCE_IDENTITY_URL=${INSTANCE_IDENTITY_URL:-http://169.254.169.254/latest/dynamic/instance-identity/document}
 declare -i num_attempts=0
 while [ -z "$(curl -s $INSTANCE_IDENTITY_URL | jq -r .instanceId)" ]; do
-    if ((num_attempts == $POLLING_MAX_ATTEMPTS)); then
+    if ((num_attempts == POLLING_MAX_ATTEMPTS)); then
         __error_log "Max attpempts(=$POLLING_MAX_ATTEMPTS) is exceeded because $INSTANCE_IDENTITY_URL did not become available."
         exit 1
     fi
@@ -56,16 +57,28 @@ declare -r AUTOSCALING_GROUP_NAME=$(
 
 declare -r SLACK_URL=${SLACK_URL:-}
 declare -r SLACK_ADDITIONAL_MESSAGE=${SLACK_ADDITIONAL_MESSAGE:-}
-declare -r SLACK_MESSAGE=":hammer_and_wrench: Detect stale state, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME. $SLACK_ADDITIONAL_MESSAGE"
 declare -r SLACK_CHANNEL=${SLACK_CHANNEL:-}
 declare -r SLACK_ICON_EMOJI=${SLACK_ICON_EMOJI:-}
 
 __info_log "Polling until errors are catched."
-until ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} >/dev/null; do
+declare STALE_STATE_CAUSE=""
+while true; do
+    if ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} >/dev/null; then
+        STALE_STATE_CAUSE="'Error getting message from ws backend' is occurred"
+        break
+    fi
+    for n in $(grep 'Duplicate ENI attachment message' /var/log/ecs/ecs-agent.log* | cut -f2 -d: | sort -n | uniq -c |  xargs -n2 echo | cut -f1 -d' '); do
+        if ((n > DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD)); then
+            STALE_STATE_CAUSE="'Duplicate ENI attachment message' count exceeds $DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD/h"
+            break 2
+        fi
+    done
     sleep $POLLING_INTERVAL
 done
 
-__warn_log "Detect the stale state, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -r SLACK_MESSAGE=":hammer_and_wrench: $MESSAGE $SLACK_ADDITIONAL_MESSAGE"
+__warn_log "$MESSAGE"
 
 if [ ! -z "$SLACK_URL" ]; then
     curl -X POST \
