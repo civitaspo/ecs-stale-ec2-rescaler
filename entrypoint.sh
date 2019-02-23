@@ -29,6 +29,7 @@ __info_log "See https://github.com/civitaspo/ecs-stale-ec2-rescaler for more inf
 declare -r  APP_NAME=ecs-stale-ec2-rescaler
 declare -ir POLLING_MAX_ATTEMPTS=${POLLING_MAX_ATTEMPTS:-60}
 declare -ir POLLING_INTERVAL=${POLLING_INTERVAL:-1}
+declare -ir DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD=${DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD:-50}
 
 declare -r INSTANCE_IDENTITY_URL=${INSTANCE_IDENTITY_URL:-http://169.254.169.254/latest/dynamic/instance-identity/document}
 declare -i num_attempts=0
@@ -63,13 +64,19 @@ __info_log "Polling until errors are catched."
 declare STALE_STATE_CAUSE=""
 while true; do
     if ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} >/dev/null; then
-        STALE_STATE_CAUSE="Error getting message from ws backend"
+        STALE_STATE_CAUSE="'Error getting message from ws backend' is occurred"
         break
     fi
+    for n in $(grep 'Duplicate ENI attachment message' /var/log/ecs/ecs-agent.log* | cut -f2 -d: | sort -n | uniq -c |  xargs -n2 echo | cut -f1 -d' '); do
+        if ((n > DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD)); then
+            STALE_STATE_CAUSE="'Duplicate ENI attachment message' count exceeds $DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD/h"
+            break 2
+        fi
+    done
     sleep $POLLING_INTERVAL
 done
 
-declare -r MESSAGE="Detect stale state:$STALE_STATE_CAUSE, so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
 declare -r SLACK_MESSAGE=":hammer_and_wrench: $MESSAGE $SLACK_ADDITIONAL_MESSAGE"
 __warn_log "$MESSAGE"
 
