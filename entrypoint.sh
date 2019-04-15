@@ -67,6 +67,10 @@ while true; do
         STALE_STATE_CAUSE="'Error getting message from ws backend' is occurred"
         break
     fi
+    if ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error response from daemon: conflict: unable to delete" {} >/dev/null; then
+        STALE_STATE_CAUSE="'Error response from daemon: conflict: unable to delete' is occurred"
+        break
+    fi
     for n in $(grep 'Duplicate ENI attachment message' /var/log/ecs/ecs-agent.log* | cut -f2 -d: | sort -n | uniq -c |  xargs -n2 echo | cut -f1 -d' '); do
         if ((n > DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD)); then
             STALE_STATE_CAUSE="'Duplicate ENI attachment message' count exceeds $DUPLICATE_ENI_ATTACHMENT_PER_HOUR_THRESHOLD/h"
