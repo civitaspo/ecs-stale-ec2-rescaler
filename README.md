@@ -9,6 +9,7 @@ Docker Image for ECS to terminate a stale container instance that belongs to a a
 
 1. Polling the latest `/var/log/ecs/ecs-agent.log` until the below error message is detected.
     - `Error getting message from ws backend`
+    - `Error response from daemon: conflict: unable to delete`
     - `Duplicate ENI attachment message`
 1. Notify the detection to Slack if `SLACK_URL` is specified.
 1. Execute `aws autoscaling terminate-instance-in-auto-scaling-group --instance-id $INSTANCE_ID --no-should-decrement-desired-capacity`
@@ -28,6 +29,7 @@ Docker Image for ECS to terminate a stale container instance that belongs to a a
 
 - [amazon-ecs-agent#1698 Docker corrupted](https://github.com/aws/amazon-ecs-agent/issues/1698)
 - [amazon-ecs-agent#1667 One task prevents from all of the other in instance to change from PENDING to RUNNING](https://github.com/aws/amazon-ecs-agent/issues/1667)
+- [amazon-ecs-agent#1980 Cleanup is not working when ECS mamanged image is running in non-managed container](https://github.com/aws/amazon-ecs-agent/issues/1980)
 
 # Example
 
