@@ -38,7 +38,7 @@ while [ -z "$(curl -s $INSTANCE_IDENTITY_URL | jq -r .instanceId)" ]; do
         __error_log "Max attpempts(=$POLLING_MAX_ATTEMPTS) is exceeded because $INSTANCE_IDENTITY_URL did not become available."
         exit 1
     fi
-    __info_log "Wait until $INSTANCE_IDENTITY_URL become available. ($((num_attempts++))s)"
+    __info_log "Wait until $INSTANCE_IDENTITY_URL become available. (attpempts: $((num_attempts++))/$POLLING_MAX_ATTEMPTS)"
     sleep $POLLING_INTERVAL
 done
 unset num_attempts
