@@ -55,6 +55,13 @@ declare -r AUTOSCALING_GROUP_NAME=$(
         || echo "AutoDetectionFailed"
     )
 
+declare -r  TERMINATE_STALE_EC2=${TERMINATE_STALE_EC2:-true}
+if [ "$TERMINATE_STALE_EC2" = true ]; then
+    __info_log "Set TERMINATE_STALE_EC2=true"
+else
+    __info_log "Set TERMINATE_STALE_EC2=false"
+fi
+
 declare -r SLACK_URL=${SLACK_URL:-}
 declare -r SLACK_ADDITIONAL_MESSAGE=${SLACK_ADDITIONAL_MESSAGE:-}
 declare -r SLACK_CHANNEL=${SLACK_CHANNEL:-}
@@ -99,10 +106,12 @@ if [ ! -z "$SLACK_URL" ]; then
 fi
 
 # Terminate the container instance.
-aws autoscaling terminate-instance-in-auto-scaling-group \
-    --instance-id $INSTANCE_ID \
-    --no-should-decrement-desired-capacity \
-    --region $REGION
+if [ "$TERMINATE_STALE_EC2" = true ]; then
+    aws autoscaling terminate-instance-in-auto-scaling-group \
+        --instance-id $INSTANCE_ID \
+        --no-should-decrement-desired-capacity \
+        --region $REGION
+fi
 
 # Sleep for 200 seconds to prevent this script from looping.
 # The instance should be terminated by the end of the sleep.
