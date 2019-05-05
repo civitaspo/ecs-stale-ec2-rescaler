@@ -62,6 +62,55 @@ else
     __info_log "Set TERMINATE_STALE_EC2=false"
 fi
 
+declare -r  ECS_CLUSTER="$(curl -s $ECS_CONTAINER_METADATA_URI/task | jq -r .Cluster)"
+if [ -z "$ECS_CLUSTER" ]; then
+    __error_log "Unable to fetch the name of the cluster."
+    exit 1
+fi
+declare -r  ATTRIBUTES_FOR_STALE_EC2="${ATTRIBUTES_FOR_STALE_EC2:-}"
+declare -ir MAX_ATTRIBUTES=${MAX_ATTRIBUTES:-10}  # AWS Restriction
+declare     ATTRIBUTES_FOR_AWSCLI=""
+if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
+    declare container_instance_arn=$(
+        aws ecs list-container-instances \
+            --region $REGION \
+            --cluster $ECS_CLUSTER \
+            --filter "ec2InstanceId==$INSTANCE_ID" \
+            | jq -r '.containerInstanceArns[0]'
+        )
+    if [ -z "CONTAINER_INSTANCE_ARN" ]; then
+        __error_log "Unable to fetch the arn of the container instance(ec2 id: $INSTANCE_ID)."
+        exit 1
+    else
+        __info_log "Container Instance ARN: $container_instance_arn"
+    fi
+
+    declare -i num_attrs=0
+    for attr_kv in $ATTRIBUTES_FOR_STALE_EC2; do
+        let num_attrs++
+        if [ "$num_attrs" -gt $MAX_ATTRIBUTES ]; then
+            __error_log "You can specify up to $MAX_ATTRIBUTES attributes in a single call."
+            exit 1
+        fi
+        if [[ ! "$attr_kv" =~ '=' ]]; then
+            __error_log "ATTRIBUTES_FOR_STALE_EC2 must be a list of 'key=value' string"
+            exit 1
+        fi
+        IFS='=' read -ra kv <<< "$attr_kv"
+        declare -r attr="name=${kv[0]},value=${kv[1]},targetType=container-instance,targetId=${container_instance_arn##*/}"
+        if [ -z "$ATTRIBUTES_FOR_AWSCLI" ]; then
+            ATTRIBUTES_FOR_AWSCLI="$attr"
+        else
+            ATTRIBUTES_FOR_AWSCLI="$ATTRIBUTES_FOR_AWSCLI $attr"
+        fi
+        unset attr
+    done
+
+    unset container_instance_arn
+    unset num_attrs
+fi
+declare -r  ATTRIBUTES_FOR_AWSCLI="$ATTRIBUTES_FOR_AWSCLI"
+
 declare -r SLACK_URL=${SLACK_URL:-}
 declare -r SLACK_ADDITIONAL_MESSAGE=${SLACK_ADDITIONAL_MESSAGE:-}
 declare -r SLACK_CHANNEL=${SLACK_CHANNEL:-}
@@ -103,6 +152,14 @@ if [ ! -z "$SLACK_URL" ]; then
              }
              " \
          $SLACK_URL
+fi
+
+# Put attributes
+if [ -n "$ATTRIBUTES_FOR_AWSCLI" ]; then
+    aws ecs put-attributes \
+        --cluster $ECS_CLUSTER \
+        --attributes $ATTRIBUTES_FOR_AWSCLI \
+        --region $REGION
 fi
 
 # Terminate the container instance.
