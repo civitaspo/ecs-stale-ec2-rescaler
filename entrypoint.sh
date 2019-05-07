@@ -81,14 +81,12 @@ if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
     if [ -z "container_instance_arn" ]; then
         __error_log "Unable to fetch the arn of the container instance(ec2 id: $INSTANCE_ID)."
         exit 1
-    else
-        __info_log "Container Instance ARN: $container_instance_arn"
     fi
+    __info_log "Container Instance ARN: $container_instance_arn"
 
     declare -i num_attrs=0
     for attr_kv in $ATTRIBUTES_FOR_STALE_EC2; do
-        let num_attrs++
-        if [ "$num_attrs" -gt $MAX_ATTRIBUTES ]; then
+        if [ "$((++num_attrs))" -gt $MAX_ATTRIBUTES ]; then
             __error_log "You can specify up to $MAX_ATTRIBUTES attributes in a single call."
             exit 1
         fi
