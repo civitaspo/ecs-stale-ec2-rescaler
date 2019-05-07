@@ -71,7 +71,7 @@ declare -r  ATTRIBUTES_FOR_STALE_EC2="${ATTRIBUTES_FOR_STALE_EC2:-}"
 declare -ir MAX_ATTRIBUTES=${MAX_ATTRIBUTES:-10}  # AWS Restriction
 declare -a  ATTRIBUTES_FOR_AWSCLI=()
 if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
-    declare container_instance_arn=$(
+    declare -r container_instance_arn=$(
         aws ecs list-container-instances \
             --region $REGION \
             --cluster $ECS_CLUSTER \
