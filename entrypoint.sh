@@ -78,7 +78,7 @@ if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
             --filter "ec2InstanceId==$INSTANCE_ID" \
             | jq -r '.containerInstanceArns[0]'
         )
-    if [ -z "CONTAINER_INSTANCE_ARN" ]; then
+    if [ -z "container_instance_arn" ]; then
         __error_log "Unable to fetch the arn of the container instance(ec2 id: $INSTANCE_ID)."
         exit 1
     else
