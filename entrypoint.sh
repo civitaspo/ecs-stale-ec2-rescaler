@@ -132,7 +132,15 @@ while true; do
     sleep $POLLING_INTERVAL
 done
 
-declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+if [ "$TERMINATE_STALE_EC2" = true -a "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] and terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+elif [ "$TERMINATE_STALE_EC2" = true ]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+elif [ "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] to $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+else
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], but do nothing to $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+fi
 declare -r SLACK_MESSAGE=":hammer_and_wrench: $MESSAGE $SLACK_ADDITIONAL_MESSAGE"
 __warn_log "$MESSAGE"
 
