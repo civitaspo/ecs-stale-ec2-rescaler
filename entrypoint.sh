@@ -69,7 +69,7 @@ if [ -z "$ECS_CLUSTER" ]; then
 fi
 declare -r  ATTRIBUTES_FOR_STALE_EC2="${ATTRIBUTES_FOR_STALE_EC2:-}"
 declare -ir MAX_ATTRIBUTES=${MAX_ATTRIBUTES:-10}  # AWS Restriction
-declare     ATTRIBUTES_FOR_AWSCLI=""
+declare -a  ATTRIBUTES_FOR_AWSCLI=()
 if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
     declare container_instance_arn=$(
         aws ecs list-container-instances \
@@ -98,18 +98,14 @@ if [ -n "$ATTRIBUTES_FOR_STALE_EC2" ]; then
         fi
         IFS='=' read -ra kv <<< "$attr_kv"
         declare -r attr="name=${kv[0]},value=${kv[1]},targetType=container-instance,targetId=${container_instance_arn##*/}"
-        if [ -z "$ATTRIBUTES_FOR_AWSCLI" ]; then
-            ATTRIBUTES_FOR_AWSCLI="$attr"
-        else
-            ATTRIBUTES_FOR_AWSCLI="$ATTRIBUTES_FOR_AWSCLI $attr"
-        fi
+        ATTRIBUTES_FOR_AWSCLI+=("$attr")
         unset attr
     done
 
     unset container_instance_arn
     unset num_attrs
 fi
-declare -r  ATTRIBUTES_FOR_AWSCLI="$ATTRIBUTES_FOR_AWSCLI"
+declare -ar ATTRIBUTES_FOR_AWSCLI=("${ATTRIBUTES_FOR_AWSCLI[@]}")
 
 declare -r SLACK_URL=${SLACK_URL:-}
 declare -r SLACK_ADDITIONAL_MESSAGE=${SLACK_ADDITIONAL_MESSAGE:-}
@@ -155,10 +151,10 @@ if [ ! -z "$SLACK_URL" ]; then
 fi
 
 # Put attributes
-if [ -n "$ATTRIBUTES_FOR_AWSCLI" ]; then
+if [ "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
     aws ecs put-attributes \
         --cluster $ECS_CLUSTER \
-        --attributes $ATTRIBUTES_FOR_AWSCLI \
+        --attributes ${ATTRIBUTES_FOR_AWSCLI[@]} \
         --region $REGION
 fi
 
