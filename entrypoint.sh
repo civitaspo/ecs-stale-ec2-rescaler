@@ -64,6 +64,17 @@ else
     __info_log "Set TERMINATE_STALE_EC2=false"
 fi
 
+declare -r  ENTER_STANDBY_STALE_EC2=${ENTER_STANDBY_STALE_EC2:-false}
+if [ "$ENTER_STANDBY_STALE_EC2" = true ]; then
+    if [ "$TERMINATE_STALE_EC2" = true ]; then
+        __warn_log "Ignore ENTER_STANDBY_STALE_EC2 setting because of TERMINATE_STALE_EC2=true."
+    else
+        __info_log "Set ENTER_STANDBY_STALE_EC2=true"
+    fi
+else
+    __info_log "Set ENTER_STANDBY_STALE_EC2=false"
+fi
+
 declare -r  DETACH_STALE_EC2=${DETACH_STALE_EC2:-false}
 if [ "$DETACH_STALE_EC2" = true ]; then
     if [ "$TERMINATE_STALE_EC2" = true ]; then
@@ -143,19 +154,26 @@ while true; do
     sleep $POLLING_INTERVAL
 done
 
-if [ "$TERMINATE_STALE_EC2" = true -a "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] and terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
-elif [ "$TERMINATE_STALE_EC2" = true ]; then
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
-elif [ "$DETACH_STALE_EC2" = true -a "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] and detach $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
-elif [ "$DETACH_STALE_EC2" = true ]; then
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so detach $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
-elif [ "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] to $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
-else
-    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], but do nothing to $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+declare -a actions=()
+if [[ "${#ATTRIBUTES_FOR_AWSCLI[@]}" != 0 ]]; then
+    actions+=("put attributes($ATTRIBUTES_FOR_STALE_EC2)")
 fi
+if [[ "$TERMINATE_STALE_EC2" = true ]]; then
+    actions+=("terminate")
+else
+    if [[ "$ENTER_STANDBY_STALE_EC2" = true ]]; then
+        actions+=("enter standby")
+    fi
+    if [[ "$DETACH_STALE_EC2" = true ]]; then
+        actions+=("detach")
+    fi
+fi
+if [[ "${#actions[@]}" == 0 ]]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so do nothing to targets:[ec2:$INSTANCE_ID, asg:$AUTOSCALING_GROUP_NAME]"
+else
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so do actions:[$(IFS=,; echo "${actions[*]}")] to targets:[ec2:$INSTANCE_ID, asg:$AUTOSCALING_GROUP_NAME]"
+fi
+unset actions
 declare -r SLACK_MESSAGE=":hammer_and_wrench: $MESSAGE $SLACK_ADDITIONAL_MESSAGE"
 __warn_log "$MESSAGE"
 
@@ -181,18 +199,27 @@ if [ "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
         --region $REGION
 fi
 
-# Terminate the container instance.
-if [ "$TERMINATE_STALE_EC2" = true ]; then
+# Do actions to the container instance.
+if [[ "$TERMINATE_STALE_EC2" = true ]]; then
     aws autoscaling terminate-instance-in-auto-scaling-group \
         --instance-id $INSTANCE_ID \
         --no-should-decrement-desired-capacity \
         --region $REGION
-elif [ "$DETACH_STALE_EC2" = true ]; then
-    aws autoscaling detach-instances \
-        --instance-ids $INSTANCE_ID \
-        --auto-scaling-group-name $AUTOSCALING_GROUP_NAME \
-        --no-should-decrement-desired-capacity \
-        --region $REGION
+else
+    if [[ "$ENTER_STANDBY_STALE_EC2" = true ]]; then
+        aws autoscaling enter-standby \
+            --instance-ids $INSTANCE_ID \
+            --auto-scaling-group-name $AUTOSCALING_GROUP_NAME \
+            --no-should-decrement-desired-capacity \
+            --region $REGION
+    fi
+    if [[ "$DETACH_STALE_EC2" = true ]]; then
+        aws autoscaling detach-instances \
+            --instance-ids $INSTANCE_ID \
+            --auto-scaling-group-name $AUTOSCALING_GROUP_NAME \
+            --no-should-decrement-desired-capacity \
+            --region $REGION
+    fi
 fi
 
 # Sleep for 200 seconds to prevent this script from looping.
