@@ -45,19 +45,32 @@ unset num_attempts
 
 declare -r INSTANCE_ID=$(curl -s ${INSTANCE_IDENTITY_URL} | jq -r .instanceId)
 declare -r REGION=$(curl -s $INSTANCE_IDENTITY_URL | jq -r .region)
-# NOTE: Detect the autoscaling group just for logging, so do not exit if the detection is failed.
 declare -r AUTOSCALING_GROUP_NAME=$(
     aws ec2 describe-tags \
         --region $REGION \
         --filters "Name=resource-id,Values=$INSTANCE_ID" \
                   "Name=key,Values=aws:autoscaling:groupName" \
-        | jq -r '.Tags[0].Value' \
-        || echo "AutoDetectionFailed"
+        | jq -r '.Tags[0].Value'
     )
+if [ -z "$AUTOSCALING_GROUP_NAME" ]; then
+    __error_log "Unable to fetch the autoscaling group that ec2:$INSTANCE_ID joins in."
+    exit 1
+fi
 
 declare -r  TERMINATE_STALE_EC2=${TERMINATE_STALE_EC2:-true}
 if [ "$TERMINATE_STALE_EC2" = true ]; then
     __info_log "Set TERMINATE_STALE_EC2=true"
+else
+    __info_log "Set TERMINATE_STALE_EC2=false"
+fi
+
+declare -r  DETACH_STALE_EC2=${DETACH_STALE_EC2:-false}
+if [ "$DETACH_STALE_EC2" = true ]; then
+    if [ "$TERMINATE_STALE_EC2" = true ]; then
+        __warn_log "Ignore DETACH_STALE_EC2 setting because of TERMINATE_STALE_EC2=true."
+    else
+        __info_log "Set DETACH_STALE_EC2=true"
+    fi
 else
     __info_log "Set TERMINATE_STALE_EC2=false"
 fi
@@ -134,6 +147,10 @@ if [ "$TERMINATE_STALE_EC2" = true -a "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; th
     declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] and terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
 elif [ "$TERMINATE_STALE_EC2" = true ]; then
     declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so terminate $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+elif [ "$DETACH_STALE_EC2" = true -a "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] and detach $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
+elif [ "$DETACH_STALE_EC2" = true ]; then
+    declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so detach $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
 elif [ "${#ATTRIBUTES_FOR_AWSCLI[@]}" -ne 0 ]; then
     declare -r MESSAGE="Detect stale state:[$STALE_STATE_CAUSE], so put attributes[$ATTRIBUTES_FOR_STALE_EC2] to $INSTANCE_ID in asg:$AUTOSCALING_GROUP_NAME."
 else
@@ -168,6 +185,12 @@ fi
 if [ "$TERMINATE_STALE_EC2" = true ]; then
     aws autoscaling terminate-instance-in-auto-scaling-group \
         --instance-id $INSTANCE_ID \
+        --no-should-decrement-desired-capacity \
+        --region $REGION
+elif [ "$DETACH_STALE_EC2" = true ]; then
+    aws autoscaling detach-instances \
+        --instance-ids $INSTANCE_ID \
+        --auto-scaling-group-name $AUTOSCALING_GROUP_NAME \
         --no-should-decrement-desired-capacity \
         --region $REGION
 fi
