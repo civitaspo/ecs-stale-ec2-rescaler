@@ -22,7 +22,7 @@ function __error_log() {
     __log error "${1:-}" 1>&2
 }
 
-__info_log "This script polls ecs-agent logs to detect the ecs container instance stale state. When the state is detected, this script terminates the instance."
+__info_log "This script polls ecs-agent logs to detect the ecs container instance stale state. When the state is detected, this script can do some actions to the instance."
 __info_log "See https://github.com/civitaspo/ecs-stale-ec2-rescaler for more information."
 
 # Declare variables
