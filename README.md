@@ -24,6 +24,7 @@ Docker Image for ECS to terminate a stale container instance that belongs to a a
 - `SLACK_ADDITIONAL_MESSAGE`: Slack addtional message for the notification. (optional)
 - `SLACK_CHANNEL`: Slack channel for the notification. (optional)
 - `SLACK_ICON_EMOJI`: Slack icon emoji for the notification. (optional)
+- `IGNORE_MESSAGE_IN_WS_BACKEND`: The string to ignore in the message that matches `Error getting message from ws backend`. (optional)
 
 # Issues that this repositry concerns
 
