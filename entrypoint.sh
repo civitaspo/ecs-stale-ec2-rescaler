@@ -62,13 +62,13 @@ declare -r SLACK_ICON_EMOJI=${SLACK_ICON_EMOJI:-}
 
 __info_log "Polling until errors are catched."
 declare STALE_STATE_CAUSE=""
-declare -r IGNORE_MESSAGE_IN_WS_BACKEND=${IGNORE_MESSAGE_IN_WS_BACKEND:-}
+declare -r IGNORE_MESSAGE_IN_WS_BACKEND="${IGNORE_MESSAGE_IN_WS_BACKEND:-}"
 
 while true; do
     if [[ -z ${IGNORE_MESSAGE_IN_WS_BACKEND} ]]; then
         declare -i ERR_WS_BACKEND_CNT=$(ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} | wc -l)
     else
-        declare -i ERR_WS_BACKEND_CNT=$(ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} | grep -v ${IGNORE_MESSAGE_IN_WS_BACKEND} | wc -l)
+        declare -i ERR_WS_BACKEND_CNT=$(ls /var/log/ecs/ecs-agent.log* | sort -n | tail -n1 | xargs -I{} grep -r "Error getting message from ws backend" {} | grep -v "${IGNORE_MESSAGE_IN_WS_BACKEND}" | wc -l)
     fi
 
     if ((ERR_WS_BACKEND_CNT > 0)); then
